@@ -1,645 +1,236 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Evaporating Cloud AI Coach</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f7;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        
-        .coaching-container {
-            max-width: 900px;
-            margin: 0 auto;
-            height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        
-        .spinner {
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="coaching-container">
-        <div id="coaching-app-root"></div>
-    </div>
+<p>
+	<title>Evaporating Cloud AI Coach</title>
+</p>
+<script crossorigin="" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin="" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+	body {
+		margin: 0; padding: 20px; background-color: #f5f5f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	}
+	
+	.coaching-container {
+		max-width: 900px; margin: 0 auto; height: 100vh; padding: 20px; box-sizing: border-box;
+	}
+	
+	.spinner {
+		animation: spin 1s linear infinite;
+	}
+	
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
 
-    <script type="text/babel">
-        const { useState, useRef, useEffect } = React;
+</style>
+<div class="coaching-container">
+	<div id="coaching-app-root">
+		<br>
+	</div></div>
+<script type="text/babel">
+	const { useState, useRef, useEffect } = React; // Icon components (simplified versions) const Send = ({ size = 24 }) => (
+	<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+		<line x1="22" y1="2" x2="11" y2="13"></line>
+		<polygon points="22,2 15,22 11,13 2,9"></polygon>
+	</svg>
+	); const Loader2 = ({ size = 24, className = "" }) => (
+	<svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+		<path d="M21 12a9 9 0 11-6.219-8.56" />
+	</svg>
+	); const User = ({ size = 24 }) => (
+	<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+		<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+		<circle cx="12" cy="7" r="4"></circle>
+	</svg>
+	); const Bot = ({ size = 24 }) => (
+	<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+		<rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect>
+		<circle cx="12" cy="5" r="2"></circle>
+		<path d="M12 7v4"></path>
+		<line x1="8" y1="16" x2="8" y2="16"></line>
+		<line x1="16" y1="16" x2="16" y2="16"></line>
+	</svg>
+	); const Printer = ({ size = 24 }) => (
+	<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+		<polyline points="6,9 6,2 18,2 18,9"></polyline>
+		<path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"></path>
+		<rect x="6" y="14" width="12" height="8"></rect>
+	</svg>
+	); const CoachingInterface = () => { // Check multiple sources for user data let userName = 'there'; let userEmail = ''; let userId = ''; // Try to get from parent window if in iframe try { if (window.parent && window.parent !== window) { userName = window.parent.thinkific?.current_user?.first_name || userName; userEmail = window.parent.thinkific?.current_user?.email || userEmail; userId = window.parent.thinkific?.current_user?.id || userId; } } catch (e) { // Cross-origin error, ignore } // Check if Thinkific data is available in current window if (window.thinkific?.current_user) { userName = window.thinkific.current_user.first_name || userName; userEmail = window.thinkific.current_user.email || userEmail; userId = window.thinkific.current_user.id || userId; } // Check URL parameters as fallback const urlParams = new URLSearchParams(window.location.search); userName = urlParams.get('first_name') || userName; userEmail = urlParams.get('email') || userEmail; userId = urlParams.get('user_id') || userId; const [messages, setMessages] = useState([ { id: 1, type: 'agent', content: `Hi${userName !== 'there' ? ' ' + userName : ''}! I'm your Evaporating Cloud AI Coach. Let me know when you are ready to start.`, timestamp: new Date() } ]); const [inputText, setInputText] = useState(''); const [isLoading, setIsLoading] = useState(false); const messagesEndRef = useRef(null); const inputRef = useRef(null); // Your production n8n webhook URL (without 'test' in the path) const WEBHOOK_URL = 'https://yourthinkingcoach.app.n8n.cloud/webhook/b2aecd92-9217-4b5e-b9dd-a36bcf286d42'; const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }; useEffect(() => { scrollToBottom(); }, [messages]); const printTranscript = () => { const printWindow = window.open('', '_blank'); const printContent = generatePrintHTML(); printWindow.document.write(printContent); printWindow.document.close(); printWindow.focus(); printWindow.print(); printWindow.close(); }; const generatePrintHTML = () => { const sessionId = getSessionId(); const currentDate = new Date().toLocaleDateString(); const currentTime = new Date().toLocaleTimeString(); const messagesHTML = messages.map(message => { const speaker = message.type === 'user' ? 'You' : 'Coach'; const timeStr = formatTime(message.timestamp); return `
+	<div class="print-message">
+		<div class="print-message-header">
+			<strong>${speaker}</strong>
+			<span class="print-time">${timeStr}</span>
+		</div>
+		<div class="print-message-content">${message.content}</div>
+	</div>
+	`; }).join(''); return `
+	<!DOCTYPE html>
+	<html>
+	<head>
+		<title>Coaching Session Transcript</title>
+		<style>
+			* {
+				margin: 0; padding: 0; box-sizing: border-box;
+			}
+			
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 40px 20px;
+			}
+			
+			.print-header {
+				text-align: center; margin-bottom: 40px; border-bottom: 2px solid #667eea; padding-bottom: 20px;
+			}
+			
+			.print-header h1 {
+				color: #667eea; margin-bottom: 10px; font-size: 28px;
+			}
+			
+			.print-meta {
+				color: #666; font-size: 14px;
+			}
+			
+			.print-message {
+				margin-bottom: 25px; padding: 15px; border-left: 3px solid #f0f0f0;
+			}
+			
+			.print-message-header {
+				display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+			}
+			
+			.print-message-header strong {
+				color: #667eea; font-size: 16px;
+			}
+			
+			.print-time {
+				color: #999; font-size: 12px;
+			}
+			
+			.print-message-content {
+				font-size: 15px; line-height: 1.6; white-space: pre-wrap;
+			}
+			
+			.print-footer {
+				margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #999; font-size: 12px;
+			}
+			
+			@media print {
+				body {
+					padding: 20px;
+				}
+				.print-header {
+					margin-bottom: 30px;
+				}
+				.print-message {
+					break-inside: avoid; margin-bottom: 20px;
+				}
+			}
 
-        // Icon components (simplified versions)
-        const Send = ({ size = 24 }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22,2 15,22 11,13 2,9"></polygon>
-            </svg>
-        );
+		</style>
+	</head>
+	<body>
+		<div class="print-header">
 
-        const Loader2 = ({ size = 24, className = "" }) => (
-            <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 12a9 9 0 11-6.219-8.56" />
-            </svg>
-        );
+			<h1>Coaching Session Transcript</h1>
+			<div class="print-meta">
+				<div>Session ID: ${sessionId}</div>
+				<div>Date: ${currentDate} at ${currentTime}</div>
+				<div>Total Messages: ${messages.length}</div>
+			</div>
+		</div>
+		<div class="print-content">${messagesHTML}</div>
+		<div class="print-footer">
+			<div>Generated on ${currentDate} at ${currentTime}</div>
+			<div>This transcript contains your personal coaching conversation</div>
+		</div>
+	</body>
+	</html>
+	`; }; const formatMessage = (text) => { // Convert markdown bold (**text**) to HTML let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Convert line breaks to
+	<br> tags formatted = formatted.split('\n').join('
+	<br>'); return formatted; }; const sendMessage = async () => { if (!inputText.trim() || isLoading) return; const userMessage = { id: Date.now(), type: 'user', content: inputText.trim(), timestamp: new Date() }; setMessages(prev => [...prev, userMessage]); setInputText(''); setIsLoading(true); try { const response = await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', }, body: JSON.stringify({ message: userMessage.content, session_id: getSessionId(), user_context: getUserContext(), timestamp: userMessage.timestamp.toISOString() }) }); const responseText = await response.text(); if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`); } let data; try { data = JSON.parse(responseText); } catch (parseError) { console.error('Failed to parse response as JSON:', parseError); throw new Error('Invalid JSON response from server'); } const agentMessage = { id: Date.now() + 1, type: 'agent', content: data.response || data.message || "I'm here to help! Could you tell me more?", timestamp: new Date() }; setMessages(prev => [...prev, agentMessage]); } catch (error) { console.error('Error sending message:', error); const errorMessage = { id: Date.now() + 1, type: 'agent', content: `Connection error: ${error.message}. Please check the browser console (F12) for details.`, timestamp: new Date() }; setMessages(prev => [...prev, errorMessage]); } finally { setIsLoading(false); inputRef.current?.focus(); } }; const handleKeyPress = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }; const getSessionId = () => { let sessionId = sessionStorage.getItem('coaching_session_id'); if (!sessionId) { sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); sessionStorage.setItem('coaching_session_id', sessionId); } return sessionId; }; const getUserContext = () => { return { course_id: window.thinkific?.course?.id || null, lesson_id: window.thinkific?.lesson?.id || null, user_id: userId || window.thinkific?.user?.id || null, user_name: userName, user_email: userEmail, progress: window.thinkific?.progress || null }; }; const formatTime = (timestamp) => { return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }; return (
+	<div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 40px)', maxWidth: '800px', margin: '0 auto', background: '#ffffff', borderRadius: '16px', boxShadow: '0 4px 32px rgba(0, 0, 0, 0.1)', overflow: 'hidden', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+		{/* Header */}
+		<div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '20px 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+			<div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+				<div style={{ width: '40px', height: '40px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
+					<Bot size={20} />
+				</div>
+				<div>
 
-        const User = ({ size = 24 }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-        );
+					<h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Evaporating Cloud AI Coach</h3>
+					<span style={{ fontSize: '14px', opacity: '0.9' }}>Online</span>
+				</div>
+			</div>
+			<button onClick={printTranscript} style={{ background: 'rgba(255, 255, 255, 0.2)', border: 'none', color: 'white', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s ease', backdropFilter: 'blur(10px)' }} title="Print Transcript" onMouseOver={(e)=> { e.target.style.background = 'rgba(255, 255, 255, 0.3)'; e.target.style.transform = 'scale(1.05)'; }} onMouseOut={(e) => { e.target.style.background = 'rgba(255, 255, 255, 0.2)'; e.target.style.transform = 'scale(1)'; }} >
+				<Printer size={18} />
+			</button>
+		</div>
 
-        const Bot = ({ size = 24 }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect>
-                <circle cx="12" cy="5" r="2"></circle>
-                <path d="M12 7v4"></path>
-                <line x1="8" y1="16" x2="8" y2="16"></line>
-                <line x1="16" y1="16" x2="16" y2="16"></line>
-            </svg>
-        );
+		{/* Messages Area */}
+		<div style={{ flex: 1, overflowY: 'auto', padding: '24px', background: '#fafafa' }}>
+			{messages.map((message) => (
+			<div key={message.id} style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'flex-start', flexDirection: message.type==='user' ? 'row-reverse' : 'row' }}>
+				<div style={{ width: '32px', height: '32px', background: message.type==='user' ? '#007AFF' : '#667eea', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'white' }}>
+					{message.type === 'user' ?
+					<User size={16} /> :
+					<Bot size={16} />}
+				</div>
+				<div style={{ maxWidth: '70%', display: 'flex', flexDirection: 'column', alignItems: message.type==='user' ? 'flex-end' : 'flex-start' }}>
+					<div style={{ padding: '12px 16px', borderRadius: '20px', background: message.type==='user' ? '#007AFF' : 'white', color: message.type==='user' ? 'white' : 'black', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.1)', wordWrap: 'break-word', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} />
+					<div style={{ fontSize: '12px', color: '#8e8e93', marginTop: '4px', padding: '0 4px' }}>
+						{formatTime(message.timestamp)}
+					</div>
+				</div>
+			</div>
+			))} {isLoading && (
+			<div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'flex-start' }}>
+				<div style={{ width: '32px', height: '32px', background: '#667eea', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+					<Bot size={16} />
+				</div>
+				<div style={{ padding: '12px 16px', borderRadius: '20px', background: '#f0f0f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+					<Loader2 size={16} className="spinner" />
+					<span>Thinking...</span>
+				</div>
+			</div>
+			)}
 
-        const Printer = ({ size = 24 }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="6,9 6,2 18,2 18,9"></polyline>
-                <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"></path>
-                <rect x="6" y="14" width="12" height="8"></rect>
-            </svg>
-        );
+			<div ref={messagesEndRef} />
+		</div>
 
-        const CoachingInterface = () => {
-            // Check multiple sources for user data
-            let userName = 'there';
-            let userEmail = '';
-            let userId = '';
-            
-            // Try to get from parent window if in iframe
-            try {
-                if (window.parent && window.parent !== window) {
-                    userName = window.parent.thinkific?.current_user?.first_name || userName;
-                    userEmail = window.parent.thinkific?.current_user?.email || userEmail;
-                    userId = window.parent.thinkific?.current_user?.id || userId;
-                }
-            } catch (e) {
-                // Cross-origin error, ignore
-            }
-            
-            // Check if Thinkific data is available in current window
-            if (window.thinkific?.current_user) {
-                userName = window.thinkific.current_user.first_name || userName;
-                userEmail = window.thinkific.current_user.email || userEmail;
-                userId = window.thinkific.current_user.id || userId;
-            }
-            
-            // Check URL parameters as fallback
-            const urlParams = new URLSearchParams(window.location.search);
-            userName = urlParams.get('first_name') || userName;
-            userEmail = urlParams.get('email') || userEmail;
-            userId = urlParams.get('user_id') || userId;
+		{/* Input Area */}
+		<div style={{ padding: '20px 24px', background: 'white', borderTop: '1px solid #e5e5e7' }}>
+			<div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', background: '#f7f7f7', borderRadius: '24px', padding: '8px' }}>
+				<textarea ref={inputRef} value={inputText} onChange={(e)=> setInputText(e.target.value)} onKeyPress={handleKeyPress} placeholder="Type your message..." rows={1} disabled={isLoading} style={{ flex: 1, border: 'none', background: 'transparent', resize: 'none', outline: 'none', padding: '8px 16px', fontSize: '16px', lineHeight: '1.4', fontFamily: 'inherit', maxHeight: '120px', opacity: isLoading ? '0.6' : '1' }} />
+					<button onClick={sendMessage} disabled={!inputText.trim() || isLoading} style={{ width: '40px', height: '40px', border: 'none', background: (!inputText.trim() || isLoading) ? '#c7c7cc' : '#007AFF', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (!inputText.trim() || isLoading) ? 'not-allowed' : 'pointer', transition: 'all 0.2s ease', flexShrink: 0 }} onMouseOver={(e)=> { if (!(!inputText.trim() || isLoading)) { e.target.style.background = '#0056b3'; e.target.style.transform = 'scale(1.05)'; } }} onMouseOut={(e) => { if (!(!inputText.trim() || isLoading)) { e.target.style.background = '#007AFF'; e.target.style.transform = 'scale(1)'; } }} >
+						<Send size={18} />
+					</button>
+			</div>
+		</div>
+	</div>
+	); }; // Render the app ReactDOM.render(
+	<CoachingInterface />, document.getElementById('coaching-app-root'));
+</script>
+<script>
+	// Optional: Expose Thinkific context to the React app
+	// Replace these with actual Thinkific liquid template variables
+	window.thinkific = {
+		course:
+		{
+			id: "{{course.id}}" // Replace with actual Thinkific liquid syntax
+		},
+		lesson:
+		{
+			id: "{{lesson.id}}" // Replace with actual Thinkific liquid syntax
+		},
+		user:
+		{
+			id: "{{current_user.id}}" // Replace with actual Thinkific liquid syntax
+		},
+		progress: "{{user_progress}}" // Replace with actual Thinkific liquid syntax
+	};
 
-            const [messages, setMessages] = useState([
-                {
-                    id: 1,
-                    type: 'agent',
-                    content: `Hi${userName !== 'there' ? ' ' + userName : ''}! I'm your Evaporating Cloud AI Coach. Let me know when you are ready to start.`,
-                    timestamp: new Date()
-                }
-            ]);
-            const [inputText, setInputText] = useState('');
-            const [isLoading, setIsLoading] = useState(false);
-            const messagesEndRef = useRef(null);
-            const inputRef = useRef(null);
-
-            // Your production n8n webhook URL (without 'test' in the path)
-            const WEBHOOK_URL = 'https://yourthinkingcoach.app.n8n.cloud/webhook/b2aecd92-9217-4b5e-b9dd-a36bcf286d42';
-
-            const scrollToBottom = () => {
-                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-            };
-
-            useEffect(() => {
-                scrollToBottom();
-            }, [messages]);
-
-            const printTranscript = () => {
-                const printWindow = window.open('', '_blank');
-                const printContent = generatePrintHTML();
-                printWindow.document.write(printContent);
-                printWindow.document.close();
-                printWindow.focus();
-                printWindow.print();
-                printWindow.close();
-            };
-
-            const generatePrintHTML = () => {
-                const sessionId = getSessionId();
-                const currentDate = new Date().toLocaleDateString();
-                const currentTime = new Date().toLocaleTimeString();
-                
-                const messagesHTML = messages.map(message => {
-                    const speaker = message.type === 'user' ? 'You' : 'Coach';
-                    const timeStr = formatTime(message.timestamp);
-                    return `
-                        <div class="print-message">
-                            <div class="print-message-header">
-                                <strong>${speaker}</strong>
-                                <span class="print-time">${timeStr}</span>
-                            </div>
-                            <div class="print-message-content">${message.content}</div>
-                        </div>
-                    `;
-                }).join('');
-
-                return `
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>Coaching Session Transcript</title>
-                        <style>
-                            * {
-                                margin: 0;
-                                padding: 0;
-                                box-sizing: border-box;
-                            }
-                            
-                            body {
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                                line-height: 1.6;
-                                color: #333;
-                                max-width: 800px;
-                                margin: 0 auto;
-                                padding: 40px 20px;
-                            }
-                            
-                            .print-header {
-                                text-align: center;
-                                margin-bottom: 40px;
-                                border-bottom: 2px solid #667eea;
-                                padding-bottom: 20px;
-                            }
-                            
-                            .print-header h1 {
-                                color: #667eea;
-                                margin-bottom: 10px;
-                                font-size: 28px;
-                            }
-                            
-                            .print-meta {
-                                color: #666;
-                                font-size: 14px;
-                            }
-                            
-                            .print-message {
-                                margin-bottom: 25px;
-                                padding: 15px;
-                                border-left: 3px solid #f0f0f0;
-                            }
-                            
-                            .print-message-header {
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                                margin-bottom: 8px;
-                            }
-                            
-                            .print-message-header strong {
-                                color: #667eea;
-                                font-size: 16px;
-                            }
-                            
-                            .print-time {
-                                color: #999;
-                                font-size: 12px;
-                            }
-                            
-                            .print-message-content {
-                                font-size: 15px;
-                                line-height: 1.6;
-                                white-space: pre-wrap;
-                            }
-                            
-                            .print-footer {
-                                margin-top: 40px;
-                                padding-top: 20px;
-                                border-top: 1px solid #eee;
-                                text-align: center;
-                                color: #999;
-                                font-size: 12px;
-                            }
-                            
-                            @media print {
-                                body {
-                                    padding: 20px;
-                                }
-                                .print-header {
-                                    margin-bottom: 30px;
-                                }
-                                .print-message {
-                                    break-inside: avoid;
-                                    margin-bottom: 20px;
-                                }
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="print-header">
-                            <h1>Coaching Session Transcript</h1>
-                            <div class="print-meta">
-                                <div>Session ID: ${sessionId}</div>
-                                <div>Date: ${currentDate} at ${currentTime}</div>
-                                <div>Total Messages: ${messages.length}</div>
-                            </div>
-                        </div>
-                        <div class="print-content">${messagesHTML}</div>
-                        <div class="print-footer">
-                            <div>Generated on ${currentDate} at ${currentTime}</div>
-                            <div>This transcript contains your personal coaching conversation</div>
-                        </div>
-                    </body>
-                    </html>
-                `;
-            };
-
-            const formatMessage = (text) => {
-                // Convert markdown bold (**text**) to HTML
-                let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                // Convert line breaks to <br> tags
-                formatted = formatted.split('\n').join('<br>');
-                return formatted;
-            };
-
-            const sendMessage = async () => {
-                if (!inputText.trim() || isLoading) return;
-
-                const userMessage = {
-                    id: Date.now(),
-                    type: 'user',
-                    content: inputText.trim(),
-                    timestamp: new Date()
-                };
-
-                setMessages(prev => [...prev, userMessage]);
-                setInputText('');
-                setIsLoading(true);
-
-                try {
-                    const response = await fetch(WEBHOOK_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            message: userMessage.content,
-                            session_id: getSessionId(),
-                            user_context: getUserContext(),
-                            timestamp: userMessage.timestamp.toISOString()
-                        })
-                    });
-
-                    const responseText = await response.text();
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
-                    }
-
-                    let data;
-                    try {
-                        data = JSON.parse(responseText);
-                    } catch (parseError) {
-                        console.error('Failed to parse response as JSON:', parseError);
-                        throw new Error('Invalid JSON response from server');
-                    }
-
-                    const agentMessage = {
-                        id: Date.now() + 1,
-                        type: 'agent',
-                        content: data.response || data.message || "I'm here to help! Could you tell me more?",
-                        timestamp: new Date()
-                    };
-
-                    setMessages(prev => [...prev, agentMessage]);
-
-                } catch (error) {
-                    console.error('Error sending message:', error);
-                    const errorMessage = {
-                        id: Date.now() + 1,
-                        type: 'agent',
-                        content: `Connection error: ${error.message}. Please check the browser console (F12) for details.`,
-                        timestamp: new Date()
-                    };
-                    setMessages(prev => [...prev, errorMessage]);
-                } finally {
-                    setIsLoading(false);
-                    inputRef.current?.focus();
-                }
-            };
-
-            const handleKeyPress = (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            };
-
-            const getSessionId = () => {
-                let sessionId = sessionStorage.getItem('coaching_session_id');
-                if (!sessionId) {
-                    sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                    sessionStorage.setItem('coaching_session_id', sessionId);
-                }
-                return sessionId;
-            };
-
-            const getUserContext = () => {
-                return {
-                    course_id: window.thinkific?.course?.id || null,
-                    lesson_id: window.thinkific?.lesson?.id || null,
-                    user_id: userId || window.thinkific?.user?.id || null,
-                    user_name: userName,
-                    user_email: userEmail,
-                    progress: window.thinkific?.progress || null
-                };
-            };
-
-            const formatTime = (timestamp) => {
-                return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            };
-
-            return (
-                <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    height: 'calc(100vh - 40px)',
-                    maxWidth: '800px',
-                    margin: '0 auto',
-                    background: '#ffffff',
-                    borderRadius: '16px',
-                    boxShadow: '0 4px 32px rgba(0, 0, 0, 0.1)',
-                    overflow: 'hidden',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                }}>
-                    {/* Header */}
-                    <div style={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white',
-                        padding: '20px 24px',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{
-                                width: '40px',
-                                height: '40px',
-                                background: 'rgba(255, 255, 255, 0.2)',
-                                borderRadius: '50%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                backdropFilter: 'blur(10px)'
-                            }}>
-                                <Bot size={20} />
-                            </div>
-                            <div>
-                                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Evaporating Cloud AI Coach</h3>
-                                <span style={{ fontSize: '14px', opacity: '0.9' }}>Online</span>
-                            </div>
-                        </div>
-                        <button
-                            onClick={printTranscript}
-                            style={{
-                                background: 'rgba(255, 255, 255, 0.2)',
-                                border: 'none',
-                                color: 'white',
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: '50%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                                backdropFilter: 'blur(10px)'
-                            }}
-                            title="Print Transcript"
-                            onMouseOver={(e) => {
-                                e.target.style.background = 'rgba(255, 255, 255, 0.3)';
-                                e.target.style.transform = 'scale(1.05)';
-                            }}
-                            onMouseOut={(e) => {
-                                e.target.style.background = 'rgba(255, 255, 255, 0.2)';
-                                e.target.style.transform = 'scale(1)';
-                            }}
-                        >
-                            <Printer size={18} />
-                        </button>
-                    </div>
-
-                    {/* Messages Area */}
-                    <div style={{
-                        flex: 1,
-                        overflowY: 'auto',
-                        padding: '24px',
-                        background: '#fafafa'
-                    }}>
-                        {messages.map((message) => (
-                            <div
-                                key={message.id}
-                                style={{
-                                    display: 'flex',
-                                    gap: '12px',
-                                    marginBottom: '20px',
-                                    alignItems: 'flex-start',
-                                    flexDirection: message.type === 'user' ? 'row-reverse' : 'row'
-                                }}
-                            >
-                                <div style={{
-                                    width: '32px',
-                                    height: '32px',
-                                    background: message.type === 'user' ? '#007AFF' : '#667eea',
-                                    borderRadius: '50%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0,
-                                    color: 'white'
-                                }}>
-                                    {message.type === 'user' ? <User size={16} /> : <Bot size={16} />}
-                                </div>
-                                <div style={{
-                                    maxWidth: '70%',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: message.type === 'user' ? 'flex-end' : 'flex-start'
-                                }}>
-                                    <div style={{
-                                        padding: '12px 16px',
-                                        borderRadius: '20px',
-                                        background: message.type === 'user' ? '#007AFF' : 'white',
-                                        color: message.type === 'user' ? 'white' : 'black',
-                                        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.1)',
-                                        wordWrap: 'break-word',
-                                        lineHeight: '1.4'
-                                    }}
-                                        dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }}
-                                    />
-                                    <div style={{
-                                        fontSize: '12px',
-                                        color: '#8e8e93',
-                                        marginTop: '4px',
-                                        padding: '0 4px'
-                                    }}>
-                                        {formatTime(message.timestamp)}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                        
-                        {isLoading && (
-                            <div style={{
-                                display: 'flex',
-                                gap: '12px',
-                                marginBottom: '20px',
-                                alignItems: 'flex-start'
-                            }}>
-                                <div style={{
-                                    width: '32px',
-                                    height: '32px',
-                                    background: '#667eea',
-                                    borderRadius: '50%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: 'white'
-                                }}>
-                                    <Bot size={16} />
-                                </div>
-                                <div style={{
-                                    padding: '12px 16px',
-                                    borderRadius: '20px',
-                                    background: '#f0f0f0',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                }}>
-                                    <Loader2 size={16} className="spinner" />
-                                    <span>Thinking...</span>
-                                </div>
-                            </div>
-                        )}
-
-                        <div ref={messagesEndRef} />
-                    </div>
-
-                    {/* Input Area */}
-                    <div style={{
-                        padding: '20px 24px',
-                        background: 'white',
-                        borderTop: '1px solid #e5e5e7'
-                    }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'flex-end',
-                            gap: '12px',
-                            background: '#f7f7f7',
-                            borderRadius: '24px',
-                            padding: '8px'
-                        }}>
-                            <textarea
-                                ref={inputRef}
-                                value={inputText}
-                                onChange={(e) => setInputText(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                placeholder="Type your message..."
-                                rows={1}
-                                disabled={isLoading}
-                                style={{
-                                    flex: 1,
-                                    border: 'none',
-                                    background: 'transparent',
-                                    resize: 'none',
-                                    outline: 'none',
-                                    padding: '8px 16px',
-                                    fontSize: '16px',
-                                    lineHeight: '1.4',
-                                    fontFamily: 'inherit',
-                                    maxHeight: '120px',
-                                    opacity: isLoading ? '0.6' : '1'
-                                }}
-                            />
-                            <button
-                                onClick={sendMessage}
-                                disabled={!inputText.trim() || isLoading}
-                                style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    border: 'none',
-                                    background: (!inputText.trim() || isLoading) ? '#c7c7cc' : '#007AFF',
-                                    color: 'white',
-                                    borderRadius: '50%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: (!inputText.trim() || isLoading) ? 'not-allowed' : 'pointer',
-                                    transition: 'all 0.2s ease',
-                                    flexShrink: 0
-                                }}
-                                onMouseOver={(e) => {
-                                    if (!(!inputText.trim() || isLoading)) {
-                                        e.target.style.background = '#0056b3';
-                                        e.target.style.transform = 'scale(1.05)';
-                                    }
-                                }}
-                                onMouseOut={(e) => {
-                                    if (!(!inputText.trim() || isLoading)) {
-                                        e.target.style.background = '#007AFF';
-                                        e.target.style.transform = 'scale(1)';
-                                    }
-                                }}
-                            >
-                                <Send size={18} />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // Render the app
-        ReactDOM.render(<CoachingInterface />, document.getElementById('coaching-app-root'));
-    </script>
-
-    <script>
-        // Optional: Expose Thinkific context to the React app
-        // Replace these with actual Thinkific liquid template variables
-        window.thinkific = {
-            course: {
-                id: "{{course.id}}" // Replace with actual Thinkific liquid syntax
-            },
-            lesson: {
-                id: "{{lesson.id}}" // Replace with actual Thinkific liquid syntax
-            },
-            user: {
-                id: "{{current_user.id}}" // Replace with actual Thinkific liquid syntax
-            },
-            progress: "{{user_progress}}" // Replace with actual Thinkific liquid syntax
-        };
-    </script>
-</body>
-</html>
+</script>
